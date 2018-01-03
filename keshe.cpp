@@ -270,7 +270,6 @@ vector<Edge> findFrom(char *from)//与找出起点相关的路线
         strcpy(start_time,row[3]);strcpy(end_time,row[4]);
         sscanf(row[5], "%d", &cost);
         string route;
-        cout <<"####时间是："<<difftime(mktime(&one),mktime(&two))<<"######";
         Edge t = {from,to,tool, start_time,end_time,int(difftime(mktime(&two),mktime(&one))),cost};//,route};
         find_result.push_back(t);//将结果放入vector里
     }
@@ -377,26 +376,26 @@ void my_err(const char*string,int line)
 }
 string standard_time(double  time)
 {
-    string day,hour,min,secs;
+    string day="0",hour="0",min="0",secs="0";
     int t = int(time);
-    while(t/60 >= 24)//天
+    while(t/3600/24 >= 1)//天
     {
-        day = to_string(t/60);
-        t = t - 24*60;
+        day = to_string(t/3600/24);
+        t = t%3600;
     }
-    while(t/60.0 >=1 && t/60.0 < 24 )//小时
+    while(t/3600 >= 1 && t/3600 < 24 )//小时
     {
-        hour = to_string(t/60);
-        t = t%60 ;
+        hour = to_string(t/3600);
+        t = t%3600 ;
     }
     while(t>1 && t< 60)//分钟
     {
         min = to_string(t);
-        t = t% 60;
+        t = t%60;
     }
         secs = to_string(t);//秒
 
-    return day+":"+hour+":"+min+":"+secs;
+    return day+"天"+hour+"小时"+min+"分钟"+secs+"秒";
 
 
 }
