@@ -9,6 +9,7 @@
 #include<mysql.h>
 #include<vector>
 #include<string.h>
+#include<string>
 #include<cstdlib>
 #include<unistd.h>
 #include<time.h>
@@ -32,6 +33,8 @@ void min_cost(void);//最省钱
 void min_times(void);//中转次数最少
 void my_err(const char *string,int line);//错误处理
 using namespace std;
+string standard_time(double  time);
+
 
 struct node{//要写入数据库的结构
     char start[100];
@@ -45,33 +48,45 @@ struct Edge {
     char from[100];
     char to[100];
     char tool[100];
+    char start_time[100];
+    char end_time[100];
     int time;
     int cost;
-    Edge(char *from, char *to, char *tool, int time, int cost): time(time), cost(cost) {
+    //string route;
+    Edge(char *from, char *to, char *tool, char* start_time,char* end_time,int time, int cost): time(time), cost(cost) {
         strcpy(this->from, from);
         strcpy(this->to, to);
         strcpy(this->tool, tool);
+        strcpy(this->start_time,start_time);
+        strcpy(this->end_time,end_time);
     }
 };
-
+struct detail_route{//输出详细结果的机构体
+    string from;
+    string to;
+    string tool;
+    string start_time;
+    string end_time;
+    int cost;
+};
 struct Path { 
     char vertex[100];
     int power; 
-    string path; 
-    Path(char *vertex, int power, string path): power(power), path(path) {
+    vector<detail_route> path; 
+    Path(char *vertex, int power, vector<detail_route> path): power(power), path(path) {
         strcpy(this->vertex, vertex);
     }
 }; 
  
-struct PathComparer { 
+struct PathComparer { //大的在前，就交换，保证从小到达
     bool operator()(Path &a, Path &b) 
     { 
-        return a.power < b.power; 
+        return a.power > b.power; 
     } 
 };
 vector<Edge> findFrom(char *from);
 
-Path dijkstra(char* from, char* to);
+Path dijkstra(char* from, char* to);//dijkstra算法
 
 int main()
 {
@@ -226,8 +241,7 @@ void find_info(void)
     }
 }
 
-
-vector<Edge> findFrom(char *from)
+vector<Edge> findFrom(char *from)//与找出起点相关的路线
 {
     vector<Edge> find_result;
     char search_data[400];
@@ -245,16 +259,20 @@ vector<Edge> findFrom(char *from)
     struct tm two = {0};
     while(row=mysql_fetch_row(res))
     {
+        //从格式中提取时间
         sscanf(row[3],"%d-%d-%d-%d-%d-%d",
                 &one.tm_year,&one.tm_mon,&one.tm_mday,&one.tm_hour,&one.tm_min,&one.tm_sec);
         sscanf(row[4],"%d-%d-%d-%d-%d-%d",
                 &two.tm_year,&two.tm_mon,&two.tm_mday,&two.tm_hour,&two.tm_min,&two.tm_sec);
         int cost;
-        char a[100], b[100], c[100];
-        strcpy(a, row[0]); strcpy(b, row[1]); strcpy(c, row[2]);
+        char from[100], to[100], tool[100],start_time[100],end_time[100];
+        strcpy(from, row[0]); strcpy(to, row[1]); strcpy(tool, row[2]);
+        strcpy(start_time,row[3]);strcpy(end_time,row[4]);
         sscanf(row[5], "%d", &cost);
-        Edge t = {a,b,c , (int)difftime(mktime(&one),mktime(&two)),cost};
-        find_result.push_back(t);
+        string route;
+        cout <<"####时间是："<<difftime(mktime(&one),mktime(&two))<<"######";
+        Edge t = {from,to,tool, start_time,end_time,int(difftime(mktime(&two),mktime(&one))),cost};//,route};
+        find_result.push_back(t);//将结果放入vector里
     }
     mysql_free_result(res);
 
@@ -263,42 +281,86 @@ vector<Edge> findFrom(char *from)
 
 void min_time(void)//最少时间
 {
-    system("clear");
-    cout << "\t\t\t请输入起点和终点"<<endl;
-    char start[100];
-    char end[100];
+    int flag =1;
+    while(1)
+    {
+        system("clear");
+        cout << "\t\t\t请输入起点和终点"<<endl;
+        char start[100];
+        char end[100];
 
-    cin >> start>>end;
-    Path result = dijkstra(start,end);
-    cout << "最少时间的路程是:";
-    cout << result.path<<endl;
-    sleep(1);
+        cin >> start>>end;
+        Path result = dijkstra(start,end);
+        cout << "\n\t\t最少时间的路程是:"<<endl;
+        string total_time = standard_time(result.power);
+        cout <<"\t\t\t① 所花费总时间:"<<total_time<<endl;
+        cout <<"\t\t\t② 详细路线:"<<endl;
+        int count = 1;
+        for(auto i:result.path)
+        {
+            cout<<"\t\t\t";
+            cout <<count<<"、";
+            cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
+            count++;
+        }
+        cout <<"\t\t\t是否继续查询(yes/no)"<<endl;
+        string get_in;
+        cout <<"\t\t\t";
+        cin >> get_in;
+        if(get_in == "no")
+            break;
+        
+        else if(get_in !="yes")
+            {
+                while(1)
+                {
+                    cout << "\t\t\t输入有误，请重新输入"<<endl;
+                    cout <<"\t\t\t";
+                    cin >> get_in;
+                    if(get_in=="no")
+                    {
+                        flag = 0;
+                        break;
+                    }
+                    else if(get_in =="yes")
+                        break;
+                }
+            }
+    
+        if(flag ==0)
+             break;
+
+    }
 }
 Path dijkstra(char* from, char* to) 
 { 
    priority_queue<Path, vector<Path>, PathComparer> Q; // 创建优先队列
-   Q.push({from, 0, from}); 
+   Q.push({from, 0, {}}); 
 
    while (!Q.empty()) 
    { 
        auto u = Q.top(); Q.pop(); 
        if (strcmp(u.vertex,to)==0) 
        { 
+           cout <<"\nuuu"<<endl;
            return u; 
        } 
 
        auto find_result = findFrom(u.vertex); 
-       sort(find_result.begin(), find_result.end(), [](const Edge &a, const Edge &b) 
+       sort(find_result.begin(), find_result.end(), [](const Edge &a, const Edge &b) //排序
        { 
            return a.time < b.time; 
        }); 
         
-       for (auto i: find_result) 
+       for (auto i: find_result) //输出路线
        { 
-           Q.push({i.to, u.power + i.time, u.path +"->"+i.to}); 
+           u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.cost});
+           Q.push({i.to, u.power + i.time, u.path});
+           u.path.pop_back();
        } 
    } 
-   return {0, 0, ""}; 
+   cout << "0000"<<endl;
+   return {0, 0, {}}; 
 } 
 void min_cost(void)//最省钱
 {
@@ -313,3 +375,29 @@ void my_err(const char*string,int line)
     fprintf(stderr,"line:%d",line);
     perror(string);
 }
+string standard_time(double  time)
+{
+    string day,hour,min,secs;
+    int t = int(time);
+    while(t/60 >= 24)//天
+    {
+        day = to_string(t/60);
+        t = t - 24*60;
+    }
+    while(t/60.0 >=1 && t/60.0 < 24 )//小时
+    {
+        hour = to_string(t/60);
+        t = t%60 ;
+    }
+    while(t>1 && t< 60)//分钟
+    {
+        min = to_string(t);
+        t = t% 60;
+    }
+        secs = to_string(t);//秒
+
+    return day+":"+hour+":"+min+":"+secs;
+
+
+}
+
