@@ -20,6 +20,7 @@ const char *line = "\t\t**********************************************\t\n";
 #define USER "root"
 #define PASSWORD "173874"
 #define DB "keshe"
+using namespace std;
 MYSQL *mysql;
 void menu_word(void);//菜单文字
 void menu_act(void);//菜单操作
@@ -32,7 +33,7 @@ void min_time(void);//最少时间
 void min_cost(void);//最省钱
 void min_times(void);//中转次数最少
 void my_err(const char *string,int line);//错误处理
-using namespace std;
+int choose_route(struct tm one,struct tm two);
 string standard_time(double  time);
 
 
@@ -72,8 +73,10 @@ struct detail_route{//输出详细结果的机构体
 struct Path { 
     char vertex[100];
     int power; 
-    vector<detail_route> path; 
-    Path(char *vertex, int power, vector<detail_route> path): power(power), path(path) {
+    vector<detail_route> path;
+    struct tm before_time;
+    Path(const char *vertex, int power, vector<detail_route> path,struct tm before_time): power(power), path(path) {
+        memcpy(&(this->before_time), &before_time, sizeof(struct tm));
         strcpy(this->vertex, vertex);
     }
 }; 
@@ -224,6 +227,7 @@ void find_info(void)
         cout<<"\t\t\t2、最省费用的路径"<<endl;
         cout<<"\t\t\t3、中转次数最少的路径"<<endl;
         cout<<"\t\t\t4、返回上一层"<<endl;
+        cout <<"\t\t";
         cin >>choice;
         if(choice == 1)
             min_time();
@@ -287,20 +291,27 @@ void min_time(void)//最少时间
         cout << "\t\t\t请输入起点和终点"<<endl;
         char start[100];
         char end[100];
-
+        cout <<"\t\t\t";
         cin >> start>>end;
         Path result = dijkstra(start,end);
-        cout << "\n\t\t最少时间的路程是:"<<endl;
-        string total_time = standard_time(result.power);
-        cout <<"\t\t\t① 所花费总时间:"<<total_time<<endl;
-        cout <<"\t\t\t② 详细路线:"<<endl;
-        int count = 1;
-        for(auto i:result.path)
+        if (result.power < 0)
         {
-            cout<<"\t\t\t";
-            cout <<count<<"、";
-            cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
-            count++;
+            cout << "\n\t\t 没有从 " << start << " 到 " << end << " 的路径！" << endl;
+        }
+        else
+        {
+            cout << "\n\t\t最少时间的路程是:"<<endl;
+            string total_time = standard_time(result.power);
+            cout <<"\t\t\t① 所花费总时间:"<<total_time<<endl;
+            cout <<"\t\t\t② 详细路线:"<<endl;
+            int count = 1;
+            for(auto i:result.path)
+            {
+                cout<<"\t\t\t";
+                cout <<count<<"、";
+                cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
+                count++;
+            }
         }
         cout <<"\t\t\t是否继续查询(yes/no)"<<endl;
         string get_in;
@@ -310,57 +321,87 @@ void min_time(void)//最少时间
             break;
         
         else if(get_in !="yes")
+        {
+            while(1)
             {
-                while(1)
+                cout << "\t\t\t输入有误，请重新输入"<<endl;
+                cout <<"\t\t\t";
+                cin >> get_in;
+                if(get_in=="no")
                 {
-                    cout << "\t\t\t输入有误，请重新输入"<<endl;
-                    cout <<"\t\t\t";
-                    cin >> get_in;
-                    if(get_in=="no")
-                    {
-                        flag = 0;
-                        break;
-                    }
-                    else if(get_in =="yes")
-                        break;
+                    flag = 0;
+                    break;
                 }
+                else if(get_in =="yes")
+                    break;
             }
+        }
     
         if(flag ==0)
              break;
 
     }
 }
+
 Path dijkstra(char* from, char* to) 
 { 
    priority_queue<Path, vector<Path>, PathComparer> Q; // 创建优先队列
-   Q.push({from, 0, {}}); 
+   struct tm before_time = {0};//之前结束时间
+   struct tm temp = {0};
 
+   Q.push({from, 0, {}, before_time}); 
    while (!Q.empty()) 
    { 
        auto u = Q.top(); Q.pop(); 
        if (strcmp(u.vertex,to)==0) 
-       { 
-           cout <<"\nuuu"<<endl;
+       {
            return u; 
-       } 
+       }
+
+       before_time = u.before_time;
 
        auto find_result = findFrom(u.vertex); 
        sort(find_result.begin(), find_result.end(), [](const Edge &a, const Edge &b) //排序
        { 
-           return a.time < b.time; 
+           return a.time < b.time;
        }); 
-        
+       
        for (auto i: find_result) //输出路线
-       { 
-           u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.cost});
-           Q.push({i.to, u.power + i.time, u.path});
-           u.path.pop_back();
-       } 
-   } 
-   cout << "0000"<<endl;
-   return {0, 0, {}}; 
-} 
+       {
+            sscanf(i.start_time,"%d-%d-%d-%d-%d-%d",
+                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);
+            // cout << "before:"<<temp.tm_year<<temp.tm_mon<<temp.tm_mday<<temp.tm_hour<<temp.tm_min<<temp.tm_sec<<endl;
+            if(choose_route(before_time, temp)) 
+            {
+                sscanf(i.end_time,"%d-%d-%d-%d-%d-%d",
+                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);
+                u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.cost});
+                Q.push({i.to, u.power + i.time, u.path, temp});
+                u.path.pop_back();
+            }
+       }
+    }
+
+    return {"", -1, {}, temp};
+}
+
+int choose_route(struct tm one,struct tm two)
+//保证之前的结束时间小于现在的开始时间
+{
+    if(one.tm_year!=two.tm_year)
+        return one.tm_year < two.tm_year;
+    if(one.tm_mon!=two.tm_mon)
+        return one.tm_mon < two.tm_mon;
+    if(one.tm_mday!=two.tm_mday)
+        return one.tm_mday < two.tm_mday;
+    if(one.tm_hour!=two.tm_hour)
+        return one.tm_hour < two.tm_hour;
+    if(one.tm_min!=two.tm_min)
+        return one.tm_min < two.tm_min;
+    if(one.tm_sec!=two.tm_sec)
+        return one.tm_sec < two.tm_sec;
+    return 1;
+}
 void min_cost(void)//最省钱
 {
 
