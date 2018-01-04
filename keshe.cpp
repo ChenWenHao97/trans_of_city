@@ -35,7 +35,7 @@ void min_times(void);//中转次数最少
 void my_err(const char *string,int line);//错误处理
 int choose_route(struct tm one,struct tm two);
 string standard_time(double  time);
-
+void get_time(const char * wrong_time,struct tm * correct_time);
 
 struct node{//要写入数据库的结构
     char start[100];
@@ -51,10 +51,9 @@ struct Edge {
     char tool[100];
     char start_time[100];
     char end_time[100];
-    int time;
-    int cost;
+    int power;
     //string route;
-    Edge(char *from, char *to, char *tool, char* start_time,char* end_time,int time, int cost): time(time), cost(cost) {
+    Edge(char *from, char *to, char *tool, char* start_time,char* end_time,int power): power(power){
         strcpy(this->from, from);
         strcpy(this->to, to);
         strcpy(this->tool, tool);
@@ -87,9 +86,9 @@ struct PathComparer { //大的在前，就交换，保证从小到达
         return a.power > b.power; 
     } 
 };
-vector<Edge> findFrom(char *from);
+vector<Edge> findFrom(char *from,int flag);
 
-Path dijkstra(char* from, char* to);//dijkstra算法
+Path dijkstra(char* from, char* to,int flag);//dijkstra算法
 
 int main()
 {
@@ -272,7 +271,7 @@ void find_info(void)
     }
 }
 
-vector<Edge> findFrom(char *from)//与找出起点相关的路线
+vector<Edge> findFrom(char *from,int flag)//与找出起点相关的路线
 {
     vector<Edge> find_result;
     char search_data[400];
@@ -291,17 +290,24 @@ vector<Edge> findFrom(char *from)//与找出起点相关的路线
     while(row=mysql_fetch_row(res))
     {
         //从格式中提取时间
-        sscanf(row[3],"%d-%d-%d-%d-%d-%d",
+        get_time(row[3],&one);
+        get_time(row[4],&two);
+        /*sscanf(row[3],"%d-%d-%d-%d-%d-%d",
                 &one.tm_year,&one.tm_mon,&one.tm_mday,&one.tm_hour,&one.tm_min,&one.tm_sec);
         sscanf(row[4],"%d-%d-%d-%d-%d-%d",
-                &two.tm_year,&two.tm_mon,&two.tm_mday,&two.tm_hour,&two.tm_min,&two.tm_sec);
+                &two.tm_year,&two.tm_mon,&two.tm_mday,&two.tm_hour,&two.tm_min,&two.tm_sec);*/
         int cost;
         char from[100], to[100], tool[100],start_time[100],end_time[100];
         strcpy(from, row[0]); strcpy(to, row[1]); strcpy(tool, row[2]);
         strcpy(start_time,row[3]);strcpy(end_time,row[4]);
         sscanf(row[5], "%d", &cost);
-        string route;
-        Edge t = {from,to,tool, start_time,end_time,int(difftime(mktime(&two),mktime(&one))),cost};//,route};
+        int power;
+        if(flag ==1)
+             power = int(difftime(mktime(&two),mktime(&one)));
+        else if(flag ==2)
+            power = cost;
+
+        Edge t = {from,to,tool, start_time,end_time,power};//,route};
         find_result.push_back(t);//将结果放入vector里
     }
     mysql_free_result(res);
@@ -320,7 +326,7 @@ void min_time(void)//最少时间
         char end[100];
         cout <<"\n\t\t\t";
         cin >> start>>end;
-        Path result = dijkstra(start,end);
+        Path result = dijkstra(start,end,1);
         if (result.power < 0)
         {
             cout << "\n\t\t 没有从 " << start << " 到 " << end << " 的路径！" << endl;
@@ -328,8 +334,6 @@ void min_time(void)//最少时间
         else
         {
             cout << "\n\t\t最少时间的路程是:"<<endl;
-            
-            
             cout <<"\t\t① 详细路线:"<<endl;
             int count = 1;
             struct tm  before = {0};
@@ -341,10 +345,12 @@ void min_time(void)//最少时间
                 cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
                 count++;
             }
-            sscanf(result.path.front().start_time.c_str(),"%d-%d-%d-%d-%d-%d",&before.tm_year,
-                        &before.tm_mon,&before.tm_mday, &before.tm_hour,&before.tm_min,&before.tm_sec);
-            sscanf(result.path.back().end_time.c_str(), "%d-%d-%d-%d-%d-%d",&after.tm_year,
-                        &after.tm_mon,&after.tm_mday, &after.tm_hour,&after.tm_min,&after.tm_sec);
+            /*sscanf(result.path.front().start_time.c_str(),"%d-%d-%d-%d-%d-%d",&before.tm_year,
+                        &before.tm_mon,&before.tm_mday, &before.tm_hour,&before.tm_min,&before.tm_sec);*/
+            get_time(result.path.front().start_time.c_str(),&before);
+            get_time(result.path.back().end_time.c_str(),&after);
+            /**sscanf(result.path.back().end_time.c_str(), "%d-%d-%d-%d-%d-%d",&after.tm_year,
+                        &after.tm_mon,&after.tm_mday, &after.tm_hour,&after.tm_min,&after.tm_sec);*/
             string total_time = standard_time(difftime(mktime(&after),mktime(&before)));
             cout <<"\t\t②所花费总时间:"<<total_time<<endl;
 
@@ -379,7 +385,7 @@ void min_time(void)//最少时间
     }
 }
 
-Path dijkstra(char* from, char* to) 
+Path dijkstra(char* from, char* to,int flag) 
 { 
    priority_queue<Path, vector<Path>, PathComparer> Q; // 创建优先队列
    struct tm before_time = {0};//之前结束时间
@@ -396,23 +402,25 @@ Path dijkstra(char* from, char* to)
 
        before_time = u.before_time;
 
-       auto find_result = findFrom(u.vertex); 
+       auto find_result = findFrom(u.vertex,flag); 
        sort(find_result.begin(), find_result.end(), [](const Edge &a, const Edge &b) //排序
        { 
-           return a.time < b.time;
+           return a.power < b.power;
        }); 
        
        for (auto i: find_result) //输出路线
        {
-            sscanf(i.start_time,"%d-%d-%d-%d-%d-%d",
-                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);
+            /*sscanf(i.start_time,"%d-%d-%d-%d-%d-%d",
+                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);*/
+            get_time(i.start_time,&temp);
             // cout << "before:"<<temp.tm_year<<temp.tm_mon<<temp.tm_mday<<temp.tm_hour<<temp.tm_min<<temp.tm_sec<<endl;
             if(choose_route(before_time, temp)) 
             {
-                sscanf(i.end_time,"%d-%d-%d-%d-%d-%d",
-                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);
-                u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.cost});
-                Q.push({i.to, u.power + i.time, u.path, temp});
+                /*sscanf(i.end_time,"%d-%d-%d-%d-%d-%d",
+                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);*/
+                get_time(i.end_time,&temp);
+                u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.power});
+                Q.push({i.to, u.power + i.power, u.path, temp});
                 u.path.pop_back();
             }
        }
@@ -475,5 +483,10 @@ string standard_time(double  time)
     return day+"天"+hour+"小时"+min+"分钟"+secs+"秒";
 
 
+}
+void get_time(const char * wrong_time,struct tm *correct_time)
+{
+    sscanf(wrong_time,"%d-%d-%d-%d-%d-%d",&(correct_time->tm_year), &(correct_time->tm_mon),&(correct_time->tm_mday),
+             &(correct_time->tm_hour),&(correct_time->tm_min),&(correct_time->tm_sec));
 }
 
