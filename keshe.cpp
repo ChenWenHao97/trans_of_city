@@ -44,6 +44,7 @@ struct node{//要写入数据库的结构
     char start_time[100];
     char end_time[100];
     char cost[100];
+    char num[100];
 };
 struct Edge {
     char from[100];
@@ -52,13 +53,15 @@ struct Edge {
     char start_time[100];
     char end_time[100];
     int power;
+    char num[100];//车次
     //string route;
-    Edge(char *from, char *to, char *tool, char* start_time,char* end_time,int power): power(power){
+    Edge(char *from, char *to, char *tool, char* start_time,char* end_time,int power,char* num): power(power){
         strcpy(this->from, from);
         strcpy(this->to, to);
         strcpy(this->tool, tool);
         strcpy(this->start_time,start_time);
         strcpy(this->end_time,end_time);
+        strcpy(this->num,num);
     }
 };
 struct detail_route{//输出详细结果的机构体
@@ -68,6 +71,7 @@ struct detail_route{//输出详细结果的机构体
     string start_time;
     string end_time;
     int cost;
+    string num;
 };
 struct Path { 
     char vertex[100];
@@ -89,6 +93,7 @@ struct PathComparer { //大的在前，就交换，保证从小到达
 vector<Edge> findFrom(char *from,int flag);
 
 Path dijkstra(char* from, char* to,int flag);//dijkstra算法
+Path bfs(char *from,char *to);//求中转次数最少
 
 int main()
 {
@@ -108,7 +113,7 @@ void menu_word(void)
     cout <<line;
     cout<<"\t\t\t\t欢迎来到查询票务系统\t\t"<<endl;
     cout<<"\n\n";
-    cout<<"\t\t\t\t1、录入航线信息"<<endl;
+    cout<<"\t\t\t\t1、管理航线信息"<<endl;
     cout<<"\t\t\t\t2、查询车次"<<endl;
     cout<<"\t\t\t\t3、根据需求查询线路"<<endl;
     cout<<"\t\t\t\t4、退出系统"<<endl;
@@ -174,13 +179,24 @@ void get_info(void)
 void add_line(void)
 {
     node in;
-    cout <<"请依次输入起点，终点，交通工具，起始时间，终止时间，费用："<<endl;
-    cin >> in.start>>in.end>>in.tool>>in.start_time>>in.end_time>>in.cost;
-    
+    cout <<"\t\t起点:";
+    cin >> in.start;
+    cout<<"\t\t终点:";
+    cin>>in.end;
+    cout <<"\t\t交通工具:";
+    cin>>in.tool;
+    cout <<"\t\t起始时间:";
+    cin>>in.start_time;
+    cout <<"\t\t终止时间:";
+    cin>>in.end_time;
+    cout <<"\t\t费用:";
+    cin>>in.cost;
+    cout <<"\t\t车次";
+    cin >>in.num;
     char insert_data[400];
     memset(insert_data,0,sizeof(insert_data));
-    sprintf(insert_data,"insert into data values(\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\");",
-            in.start,in.end,in.tool,in.start_time,in.end_time,in.cost);
+    sprintf(insert_data,"insert into data values(\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\");",
+            in.start,in.end,in.tool,in.start_time,in.end_time,in.cost,in.num);
     //cout << insert_data;
     if(mysql_real_query(mysql,insert_data,strlen(insert_data))!=0)
     {
@@ -190,16 +206,22 @@ void add_line(void)
     cout <<"\t\t\t添加成功！"<<endl;
     sleep(1);
 }
+
 void delete_line(void)
 {
     node in;
-    cout <<"请删除路线的输入起点，终点"<<endl;
-    cin >> in.start>>in.end;
+    cout <<"\t\t请输入删除路线的起点";
+    cin >>in.start;
+    cout<<"\t\t请输入删除路线终点";
+    cin >>in.end;
+    cout<<"\t\t请输入删除路线的车次";
+    cin >>in.num;
+    
     
     char insert_data[400];
     memset(insert_data,0,sizeof(insert_data));
-    sprintf(insert_data,"delete from data where start=\"%s\" and end=\"%s\";",
-            in.start,in.end);
+    sprintf(insert_data,"delete from data where start=\"%s\" and end=\"%s\" and num=\"%s\";",
+            in.start,in.end,in.num);
     //cout << insert_data;
     if(mysql_real_query(mysql,insert_data,strlen(insert_data))!=0)
     {
@@ -210,6 +232,7 @@ void delete_line(void)
     sleep(1);
 
 }
+
 void watch_info(void)//查询路线
 {
     while(1)
@@ -227,20 +250,21 @@ void watch_info(void)//查询路线
         int count = 1;
         while(row=mysql_fetch_row(res))
         {
-            cout <<"\t\t";
             cout <<count<<"、";
-            cout <<"从"<<row[0]<<" 到"<<row[1]<<" 乘坐"<<row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<endl;
+            cout <<"从"<<row[0]<<" 到"<<row[1]<<" 乘坐"<<
+                row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<"费用:"<<row[5]<<" 车次:"<<row[6]<<endl;
             count++;
         }
         cout <<"\t\t是否返回（yes/no)：";
         string chooice;
-        cout <<"\n\t\t";
+        cout <<"\n\t\t\t";
         cin >> chooice;
         if(chooice == "yes")
             break;
     }
     
 }
+
 void find_info(void)
 {
     system("clear");
@@ -248,12 +272,13 @@ void find_info(void)
     while(1)
     {
         system("clear");
-        cout <<"请输入与你的选项"<<endl;
+        cout <<"\t\t请输入与你的选项"<<endl;
         cout<<"\t\t\t1、时间最短的路径"<<endl;
         cout<<"\t\t\t2、最省费用的路径"<<endl;
         cout<<"\t\t\t3、中转次数最少的路径"<<endl;
         cout<<"\t\t\t4、返回上一层"<<endl;
         cout <<"\t\t";
+        cout <<"请输入你的选项:";
         cin >>choice;
         if(choice == 1)
             min_time();
@@ -265,8 +290,10 @@ void find_info(void)
             break;
         else 
         {
-            cout << "输入错误，请重新输入"<<endl;
+            cout << "\t\t\t输入错误，请重新输入"<<endl;
             sleep(1);
+            system("clear");
+
         }
     }
 }
@@ -292,22 +319,21 @@ vector<Edge> findFrom(char *from,int flag)//与找出起点相关的路线
         //从格式中提取时间
         get_time(row[3],&one);
         get_time(row[4],&two);
-        /*sscanf(row[3],"%d-%d-%d-%d-%d-%d",
-                &one.tm_year,&one.tm_mon,&one.tm_mday,&one.tm_hour,&one.tm_min,&one.tm_sec);
-        sscanf(row[4],"%d-%d-%d-%d-%d-%d",
-                &two.tm_year,&two.tm_mon,&two.tm_mday,&two.tm_hour,&two.tm_min,&two.tm_sec);*/
         int cost;
-        char from[100], to[100], tool[100],start_time[100],end_time[100];
+        char from[100], to[100], tool[100],start_time[100],end_time[100],num[100];
         strcpy(from, row[0]); strcpy(to, row[1]); strcpy(tool, row[2]);
         strcpy(start_time,row[3]);strcpy(end_time,row[4]);
+        strcpy(num,row[6]);
         sscanf(row[5], "%d", &cost);
         int power;
         if(flag ==1)
              power = int(difftime(mktime(&two),mktime(&one)));
         else if(flag ==2)
             power = cost;
+        else 
+            power =1;
 
-        Edge t = {from,to,tool, start_time,end_time,power};//,route};
+        Edge t = {from,to,tool, start_time,end_time,power,num};//,route};
         find_result.push_back(t);//将结果放入vector里
     }
     mysql_free_result(res);
@@ -345,12 +371,8 @@ void min_time(void)//最少时间
                 cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
                 count++;
             }
-            /*sscanf(result.path.front().start_time.c_str(),"%d-%d-%d-%d-%d-%d",&before.tm_year,
-                        &before.tm_mon,&before.tm_mday, &before.tm_hour,&before.tm_min,&before.tm_sec);*/
             get_time(result.path.front().start_time.c_str(),&before);
             get_time(result.path.back().end_time.c_str(),&after);
-            /**sscanf(result.path.back().end_time.c_str(), "%d-%d-%d-%d-%d-%d",&after.tm_year,
-                        &after.tm_mon,&after.tm_mday, &after.tm_hour,&after.tm_min,&after.tm_sec);*/
             string total_time = standard_time(difftime(mktime(&after),mktime(&before)));
             cout <<"\t\t②所花费总时间:"<<total_time<<endl;
 
@@ -410,16 +432,11 @@ Path dijkstra(char* from, char* to,int flag)
        
        for (auto i: find_result) //输出路线
        {
-            /*sscanf(i.start_time,"%d-%d-%d-%d-%d-%d",
-                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);*/
             get_time(i.start_time,&temp);
-            // cout << "before:"<<temp.tm_year<<temp.tm_mon<<temp.tm_mday<<temp.tm_hour<<temp.tm_min<<temp.tm_sec<<endl;
             if(choose_route(before_time, temp)) 
             {
-                /*sscanf(i.end_time,"%d-%d-%d-%d-%d-%d",
-                    &temp.tm_year,&temp.tm_mon,&temp.tm_mday,&temp.tm_hour,&temp.tm_min,&temp.tm_sec);*/
                 get_time(i.end_time,&temp);
-                u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.power});
+                u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.power,i.num});
                 Q.push({i.to, u.power + i.power, u.path, temp});
                 u.path.pop_back();
             }
@@ -428,7 +445,40 @@ Path dijkstra(char* from, char* to,int flag)
 
     return {"", -1, {}, temp};
 }
-
+Path bfs(char *from,char *to)
+{
+    queue<Path> Q; // 创建队列
+    struct tm before_time = {0};//之前结束时间
+    struct tm temp = {0};
+ 
+    Q.push({from, 0, {}, before_time}); 
+    while (!Q.empty()) 
+    { 
+        auto u = Q.front(); Q.pop(); 
+        if (strcmp(u.vertex,to)==0) 
+        {
+            return u; 
+        }
+ 
+        before_time = u.before_time;
+ 
+        auto find_result = findFrom(u.vertex,3); 
+        
+        for (auto i: find_result) //输出路线
+        {
+             get_time(i.start_time,&temp);
+             if(choose_route(before_time, temp)) 
+             {
+                 get_time(i.end_time,&temp);
+                 u.path.push_back({i.from,i.to,i.tool,i.start_time,i.end_time,i.power,i.num});
+                 Q.push({i.to, u.power + 1, u.path, temp});
+                 u.path.pop_back();
+             }
+        }
+     }
+ 
+    return {"", -1, {}, temp};
+}
 int choose_route(struct tm one,struct tm two)
 //保证之前的结束时间小于现在的开始时间
 {
@@ -448,18 +498,137 @@ int choose_route(struct tm one,struct tm two)
 }
 void min_cost(void)//最省钱
 {
+    int flag =1;
+    while(1)
+    {
+        system("clear");
+        cout << "\t\t\t请输入起点和终点"<<endl;
+        char start[100];
+        char end[100];
+        cout <<"\n\t\t\t";
+        cin >> start>>end;
+        Path result = dijkstra(start,end,2);
+        if (result.power < 0)
+        {
+            cout << "\n\t\t 没有从 " << start << " 到 " << end << " 的路径！" << endl;
+        }
+        else
+        {
+            cout << "\n\t\t最少花费的路程是:"<<endl;
+            cout <<"\t\t① 详细路线:"<<endl;
+            int count = 1;
+            struct tm  before = {0};
+            struct tm after ={0};
+            int total_cost=0;
+            for(auto i:result.path)
+            {
+                cout<<"\t\t";
+                cout <<count<<"、";
+                cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool
+                    <<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<"费用是:"<<i.cost<<endl;
+                count++;
+                total_cost+=i.cost;
+            }
+            cout <<"\t\t② 所花费总费用:"<<total_cost<<endl;
 
+        }
+        cout <<"\n\t\t是否继续查询(yes/no)"<<endl;
+        string get_in;
+        cout <<"\t\t";
+        cin >> get_in;
+        if(get_in == "no")
+            break;
+        
+        else if(get_in !="yes")
+        {
+            while(1)
+            {
+                cout << "\t\t\t输入有误，请重新输入"<<endl;
+                cout <<"\t\t\t";
+                cin >> get_in;
+                if(get_in=="no")
+                {
+                    flag = 0;
+                    break;
+                }
+                else if(get_in =="yes")
+                    break;
+            }
+        }
+    
+        if(flag ==0)
+             break;
+
+    }
+        
 }
 void min_times(void)//中转次数最少
 {
-
+     int flag =1;
+     while(1)
+     {
+         system("clear");
+         cout << "\t\t\t请输入起点和终点"<<endl;
+         char start[100];
+         char end[100];
+         cout <<"\n\t\t\t";
+         cin >> start>>end;
+         Path result = bfs(start,end);
+         if (result.power < 0)
+         {
+             cout << "\n\t\t 没有从 " << start << " 到 " << end << " 的路径！" << endl;
+         }
+         else
+         {
+             cout << "\n\t最少中转的路程是:"<<endl;
+             cout <<"\t① 详细路线:"<<endl;
+             int count = 1;
+            int cost =0;
+             for(auto i:result.path)
+             {
+                 cout<<"\t\t";
+                 cout <<count<<"、";
+                 cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
+                 cost +=i.cost;
+                 count++;
+             }
+             cout <<"\n\t② 中转次数:"<<cost<<endl;
+ 
+         }
+         cout <<"\n\t\t\t是否继续查询(yes/no)"<<endl;
+         string get_in;
+         cout <<"\t\t\t";
+         cin >> get_in;
+         if(get_in == "no")
+             break;
+         
+         else if(get_in !="yes")
+         {
+             while(1)
+             {
+                 cout << "\t\t\t输入有误，请重新输入"<<endl;
+                 cout <<"\t\t\t";
+                 cin >> get_in;
+                 if(get_in=="no")
+                 {
+                     flag = 0;
+                     break;
+                 }
+                 else if(get_in =="yes")
+                     break;
+             }
+         }
+     
+         if(flag ==0)
+              break;
+    }
 }
 void my_err(const char*string,int line)
 {
     fprintf(stderr,"line:%d",line);
     perror(string);
 }
-string standard_time(double  time)
+string standard_time(double  time)//将秒转换成年天小时
 {
     string day="0",hour="0",min="0",secs="0";
     int t = int(time);
@@ -484,9 +653,8 @@ string standard_time(double  time)
 
 
 }
-void get_time(const char * wrong_time,struct tm *correct_time)
+void get_time(const char * wrong_time,struct tm *correct_time)//用sscancf将字符串转化出来
 {
     sscanf(wrong_time,"%d-%d-%d-%d-%d-%d",&(correct_time->tm_year), &(correct_time->tm_mon),&(correct_time->tm_mday),
              &(correct_time->tm_hour),&(correct_time->tm_min),&(correct_time->tm_sec));
 }
-
