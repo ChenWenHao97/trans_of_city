@@ -213,7 +213,34 @@ void delete_line(void)
 }
 void watch_info(void)//查询路线
 {
-    ///////
+    while(1)
+    {
+        system("clear");
+        char result[400];
+        strcpy(result,"select * from data");
+        if(mysql_real_query(mysql,result,strlen(result))!=0)
+        {
+            my_err("watch_info",__LINE__);
+            printf("\033[32m%s\033[0m\n", mysql_error(mysql));
+        }
+        MYSQL_RES* res=mysql_store_result(mysql);
+        MYSQL_ROW row;
+        int count = 1;
+        while(row=mysql_fetch_row(res))
+        {
+            cout <<"\t\t";
+            cout <<count<<"、";
+            cout <<"从"<<row[0]<<" 到"<<row[1]<<" 乘坐"<<row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<endl;
+            count++;
+        }
+        cout <<"\t\t是否返回（yes/no)：";
+        string chooice;
+        cout <<"\n\t\t";
+        cin >> chooice;
+        if(chooice == "yes")
+            break;
+    }
+    
 }
 void find_info(void)
 {
@@ -291,7 +318,7 @@ void min_time(void)//最少时间
         cout << "\t\t\t请输入起点和终点"<<endl;
         char start[100];
         char end[100];
-        cout <<"\t\t\t";
+        cout <<"\n\t\t\t";
         cin >> start>>end;
         Path result = dijkstra(start,end);
         if (result.power < 0)
@@ -301,19 +328,28 @@ void min_time(void)//最少时间
         else
         {
             cout << "\n\t\t最少时间的路程是:"<<endl;
-            string total_time = standard_time(result.power);
-            cout <<"\t\t\t① 所花费总时间:"<<total_time<<endl;
-            cout <<"\t\t\t② 详细路线:"<<endl;
+            
+            
+            cout <<"\t\t① 详细路线:"<<endl;
             int count = 1;
+            struct tm  before = {0};
+            struct tm after ={0};
             for(auto i:result.path)
             {
-                cout<<"\t\t\t";
+                cout<<"\t\t";
                 cout <<count<<"、";
                 cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
                 count++;
             }
+            sscanf(result.path.front().start_time.c_str(),"%d-%d-%d-%d-%d-%d",&before.tm_year,
+                        &before.tm_mon,&before.tm_mday, &before.tm_hour,&before.tm_min,&before.tm_sec);
+            sscanf(result.path.back().end_time.c_str(), "%d-%d-%d-%d-%d-%d",&after.tm_year,
+                        &after.tm_mon,&after.tm_mday, &after.tm_hour,&after.tm_min,&after.tm_sec);
+            string total_time = standard_time(difftime(mktime(&after),mktime(&before)));
+            cout <<"\t\t②所花费总时间:"<<total_time<<endl;
+
         }
-        cout <<"\t\t\t是否继续查询(yes/no)"<<endl;
+        cout <<"\n\t\t\t是否继续查询(yes/no)"<<endl;
         string get_in;
         cout <<"\t\t\t";
         cin >> get_in;
