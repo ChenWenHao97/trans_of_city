@@ -28,47 +28,42 @@ void get_info(void);//获取信息
 void add_line(void);//添加路线
 void delete_line(void);//删除路线
 void watch_info(void);//查看裤线
+void watch_all(void);
+void watch_start(void);
+void watch_end(void);
 void find_info(void);//查找指定要求路线
 void min_time(void);//最少时间
 void min_cost(void);//最省钱
 void min_times(void);//中转次数最少
 void my_err(string str,int line);//错误处理
-int choose_route(struct tm one,struct tm two);
-string standard_time(double  time);
-void get_time(string wrong_time,struct tm * correct_time);
+int choose_route(struct tm one,struct tm two);//比较one是否小于two的时间
+string standard_time(double  time);//将秒转换成年天小时
+void get_time(string wrong_time,struct tm * correct_time);//用sscancf将字符串转化出来
+void cout_err(const char*);
+#define db_query(data) db_query_real(data, __LINE__ )
+//define展开 可以自动获取行数
+void db_query_real(string data,int line);
 
-struct node{//要写入数据库的结构
-    string start;
-    string end;
-    string tool;
-    string start_time;
-    string end_time;
-    string cost;
-    string num;
-};
+template<typename T>
+void inline input_sth(const char* prompts, T &to)
+{
+    cout << "\t\t"<<prompts<<":";
+    cin >> to;
+}
+
 struct Edge {
     string from;
     string to;
     string tool;
     string start_time;
     string end_time;
-    
     int power;
     string num;//车次
-};
-struct detail_route{//输出详细结果的机构体
-    string from;
-    string to;
-    string tool;
-    string start_time;
-    string end_time;
-    int cost;
-    string num;
 };
 struct Path { 
     string vertex;//顶点
     int power; 
-    vector<detail_route> path;
+    vector<Edge> path;
     struct tm before_time;
 }; 
  
@@ -125,8 +120,7 @@ void menu_act(void)
             break;
         else 
         {
-            cout <<"\t\t\t输入有误,请重新输入"<<endl;
-            sleep(1);
+            cout_err("输入有误,请重新输入");
         }
 
         menu_word();
@@ -159,75 +153,71 @@ void get_info(void)
             break;
         else 
         {
-            cout<<"输入有误,请重新输入"<<endl;
-            sleep(1);
+            cout_err("输入有误,请重新输入");
         }
     }
 }
 void add_line(void)
 {
-    node in;
-    cout <<"\t\t起点:";
-    cin >> in.start;
-    cout<<"\t\t终点:";
-    cin>>in.end;
-    cout <<"\t\t交通工具:";
-    cin>>in.tool;
-    cout <<"\t\t起始时间:";
-    cin>>in.start_time;
-    cout <<"\t\t终止时间:";
-    cin>>in.end_time;
-    cout <<"\t\t费用:";
-    cin>>in.cost;
-    cout <<"\t\t车次";
-    cin >>in.num;
+    //detail_route in;
+    Edge in;
+    input_sth("起点:",in.from);
+    input_sth("终点:",in.to);
+    input_sth("交通工具:",in.tool);
+    input_sth("起始时间:",in.start_time);
+    input_sth("终止时间:",in.end_time);
+    input_sth("费用:",in.power);
+    input_sth("车次",in.num);
     string insert_data = "insert into data values(\"";
-    insert_data += in.start + "\",\"" + in.end + "\",\"" + in.tool + "\",\"" + in.start_time + "\",\"" +
-                   in.end_time + "\",\"" + in.cost + "\",\"" + in.num + ");";
-    if(mysql_real_query(mysql, insert_data.c_str(), insert_data.size())!=0)
-    {
-        my_err("insert error",__LINE__);
-       // printf("\033[32m%s\033[0m\n", mysql_error(mysql));
-    }
-    cout <<"\t\t\t添加成功！"<<endl;
-    sleep(1);
+    insert_data += in.from + "\",\"" + in.to + "\",\"" + in.tool + "\",\"" + in.start_time + "\",\"" +
+                   in.end_time + "\",\"" + to_string(in.power) + "\",\"" + in.num + ");";
+    db_query(insert_data);
+    cout_err("添加成功！");
 }
 
 void delete_line(void)
 {
-    node in;
-    cout <<"\t\t请输入删除路线的起点";
-    cin >>in.start;
-    cout<<"\t\t请输入删除路线终点";
-    cin >>in.end;
-    cout<<"\t\t请输入删除路线的车次";
-    cin >>in.num;
+    Edge in;
+    input_sth("请输入删除路线的起点",in.from);
+    input_sth("请输入删除路线终点",in.to);
+    input_sth("请输入删除路线的车次",in.num);
     
     string insert_data;
     insert_data = "delete from data where start=";
-    insert_data +="\""+in.start+"\" and end=\"" + in.end + "\" and num=\"" + in.num + "\";";
-    if(mysql_real_query(mysql,insert_data.c_str(),insert_data.size())!=0)
-    {
-        my_err("insert error",__LINE__);
-        //printf("\033[32m%s\033[0m\n", mysql_error(mysql));
-    }
-    cout <<"\t\t\t删除成功！"<<endl;
-    sleep(1);
+    insert_data +="\""+in.from+"\" and end=\"" + in.to + "\" and num=\"" + in.num + "\";";
+    db_query(insert_data);
 
 }
 
 void watch_info(void)//查询路线
 {
+   while(1)
+   {
+    system("clear");
+    cout << "\t\t\t1、查询全部路线"<<endl;
+    cout << "\t\t\t2、查询特定起点的路线"<<endl;
+    cout << "\t\t\t3、查询特定终点的路线"<<endl;
+    cout << "\t\t\t4、返回上一层"<<endl;
+    string choice;
+    input_sth("请输入你的选项",choice);
+    cout << "choice=" << choice << endl;
+    if(choice == "1")
+        watch_all();
+    else if(choice == "2")
+        watch_start();
+    else if(choice =="3")
+        watch_end();
+    else if(choice =="4")
+        break;
+   }
+}
+void watch_all(void)
+{
     while(1)
     {
         system("clear");
-        string result;
-        result = "select * from data";
-        if(mysql_real_query(mysql,result.c_str(),result.size())!=0)
-        {
-            my_err("watch_info",__LINE__);
-            printf("\033[32m%s\033[0m\n", mysql_error(mysql));
-        }
+        string result = "select * from data";
+        db_query(result);
         MYSQL_RES* res=mysql_store_result(mysql);
         MYSQL_ROW row;
         int count = 1;
@@ -245,7 +235,67 @@ void watch_info(void)//查询路线
         if(choice == "yes")
             break;
     }
-    
+}
+void watch_start(void)
+{
+    while(1)
+    {
+        system("clear");
+        string start;
+        cout <<"\t\t请输入查询的起点:"<<endl;
+        cout <<"\t\t";
+        cin >> start;
+        string result= "select * from data where start=\"";
+        result += start+"\";";
+
+        db_query(result);
+        MYSQL_RES* res=mysql_store_result(mysql);
+        MYSQL_ROW row;
+        int count = 1;
+        while(row=mysql_fetch_row(res))
+        {
+            cout <<count<<"、";
+            cout <<"从"<<row[0]<<" 到"<<row[1]<<" 乘坐"<<
+                row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<"费用:"<<row[5]<<" 车次:"<<row[6]<<endl;
+            count++;
+        }
+        cout <<"\t\t是否返回（yes/no)：";
+        string choice;
+        cout <<"\n\t\t\t";
+        cin >> choice;
+        if(choice == "yes")
+            break;
+    }
+}
+void watch_end(void)
+{
+    while(1)
+    {
+        system("clear");
+        string end;
+        cout <<"\t\t请输入查询的终点:"<<endl;
+        cout <<"\t\t";
+        cin >> end;
+        string result= "select * from data where end=\"";
+        result += end+"\";";
+        db_query(result);
+        MYSQL_RES* res=mysql_store_result(mysql);
+        MYSQL_ROW row;
+        int count = 1;
+        while(row=mysql_fetch_row(res))
+        {
+            cout <<count<<"、";
+            cout <<"从"<<row[0]<<" 到"<<row[1]<<" 乘坐"<<
+                row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<"费用:"<<row[5]<<" 车次:"<<row[6]<<endl;
+            count++;
+        }
+        cout <<"\t\t是否返回（yes/no)：";
+        string choice;
+        cout <<"\n\t\t\t";
+        cin >> choice;
+        if(choice == "yes")
+            break;
+    }
 }
 
 void find_info(void)
@@ -273,10 +323,7 @@ void find_info(void)
             break;
         else 
         {
-            cout << "\t\t\t输入错误，请重新输入"<<endl;
-            sleep(1);
-            system("clear");
-
+            cout_err("输入错误，请重新输入");
         }
     }
 }
@@ -287,12 +334,7 @@ vector<Edge> findFrom(string from,int flag)//与找出起点相关的路线
     string search_data;
     search_data = "select * from data where start=\"";
     search_data += from+"\";";
-
-    if(mysql_real_query(mysql,search_data.c_str(),search_data.size())!=0)
-    {
-        my_err("insert error",__LINE__);
-        printf("\033[32m%s\033[0m\n", mysql_error(mysql));
-    }
+    db_query(search_data);
     MYSQL_RES* res=mysql_store_result(mysql);
     MYSQL_ROW row;
     struct tm one = {0};//计算起止时间差
@@ -325,7 +367,7 @@ vector<Edge> findFrom(string from,int flag)//与找出起点相关的路线
     return find_result;
 }
 
-void min_time(void)//最少时间
+void min_time(void)//最少时间num  
 {
     int flag =1;
     while(1)
@@ -372,8 +414,8 @@ void min_time(void)//最少时间
         {
             while(1)
             {
-                cout << "\t\t\t输入有误，请重新输入"<<endl;
-                cout <<"\t\t\t";
+                cout << "\t\t输入有误，请重新输入"<<endl;
+                cout <<"\t\t";
                 cin >> get_in;
                 if(get_in=="no")
                 {
@@ -508,9 +550,9 @@ void min_cost(void)//最省钱
                 cout<<"\t\t";
                 cout <<count<<"、";
                 cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool
-                    <<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<"费用是:"<<i.cost<<endl;
+                    <<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<"费用是:"<<i.power<<endl;
                 count++;
-                total_cost+=i.cost;
+                total_cost+=i.power;
             }
             cout <<"\t\t② 所花费总费用:"<<total_cost<<endl;
 
@@ -572,7 +614,7 @@ void min_times(void)//中转次数最少
                  cout<<"\t\t";
                  cout <<count<<"、";
                  cout <<string("从")+i.from<<string(" 到")+i.to<<string(" 乘坐")+i.tool<<string(" 起始时间：")+i.start_time<<string(" 终止时间：")+i.end_time<<endl;
-                 cost +=i.cost;
+                 cost +=i.power;
                  count++;
              }
              cout <<"\n\t② 中转次数:"<<cost<<endl;
@@ -639,3 +681,18 @@ void get_time(string wrong_time,struct tm *correct_time)//用sscancf将字符串
     sscanf(wrong_time.c_str(),"%d-%d-%d-%d-%d-%d",&(correct_time->tm_year), &(correct_time->tm_mon),&(correct_time->tm_mday),
              &(correct_time->tm_hour),&(correct_time->tm_min),&(correct_time->tm_sec));
 }
+void cout_err(const char* str)
+{
+    cout << "\t\t\t";
+    cout<<str<<endl;
+    sleep(1);
+}
+void db_query_real(string data,int line)
+{
+    if(mysql_real_query(mysql,data.c_str(),data.size())!=0)
+    {
+        my_err("query error",line);
+       // printf("\033[32m%s\033[0m\n", mysql_error(mysql));
+    }
+}
+
