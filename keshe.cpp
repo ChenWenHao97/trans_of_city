@@ -47,7 +47,7 @@ void db_query_real(string data,int line);
 template<typename T>
 void inline input_sth(const char* prompts, T &to)
 {
-    cout << "\t\t"<<prompts<<":";
+    cout << "\t\t"<<prompts;
     cin >> to;
 }
 
@@ -101,14 +101,14 @@ void menu_word(void)
     cout<<"\t\t\t\t3、根据需求查询线路"<<endl;
     cout<<"\t\t\t\t4、退出系统"<<endl;
     cout << line;
+    cout <<"\t\t请输入你的选项:";
 }
+
 void menu_act(void)
 {
     string choice;
-    cout<<"\t\t\t";
     cin >> choice;
-    int flag = 1;
-    while(flag)
+    while(true)
     {
         if(choice=="1")
             get_info();
@@ -124,7 +124,6 @@ void menu_act(void)
         }
 
         menu_word();
-        cout <<"\t\t\t";
         cin >> choice;
     }
     system("clear");
@@ -133,6 +132,7 @@ void menu_act(void)
     cout <<line;
 
 }
+
 void get_info(void)
 {
     while(1)
@@ -142,8 +142,8 @@ void get_info(void)
         cout<<"\t\t\t2、删除路线"<<endl;
         cout<<"\t\t\t3、返回上一层"<<endl;
         cout<<"\n";
+        cout <<"\t\t请输入你的选项:";
         string choice;
-        cout<<"\t\t";
         cin >> choice;
         if(choice=="1")
             add_line();
@@ -170,7 +170,7 @@ void add_line(void)
     input_sth("车次",in.num);
     string insert_data = "insert into data values(\"";
     insert_data += in.from + "\",\"" + in.to + "\",\"" + in.tool + "\",\"" + in.start_time + "\",\"" +
-                   in.end_time + "\",\"" + to_string(in.power) + "\",\"" + in.num + ");";
+                   in.end_time + "\",\"" + to_string(in.power) + "\",\"" + in.num + "\""+");";         
     db_query(insert_data);
     cout_err("添加成功！");
 }
@@ -178,15 +178,15 @@ void add_line(void)
 void delete_line(void)
 {
     Edge in;
-    input_sth("请输入删除路线的起点",in.from);
-    input_sth("请输入删除路线终点",in.to);
-    input_sth("请输入删除路线的车次",in.num);
+    input_sth("请输入删除路线的起点:",in.from);
+    input_sth("请输入删除路线终点:",in.to);
+    input_sth("请输入删除路线的车次:",in.num);
     
     string insert_data;
     insert_data = "delete from data where start=";
     insert_data +="\""+in.from+"\" and end=\"" + in.to + "\" and num=\"" + in.num + "\";";
     db_query(insert_data);
-
+    cout_err("删除成功！");
 }
 
 void watch_info(void)//查询路线
@@ -199,7 +199,7 @@ void watch_info(void)//查询路线
     cout << "\t\t\t3、查询特定终点的路线"<<endl;
     cout << "\t\t\t4、返回上一层"<<endl;
     string choice;
-    input_sth("请输入你的选项",choice);
+    input_sth("请输入你的选项:",choice);
     cout << "choice=" << choice << endl;
     if(choice == "1")
         watch_all();
@@ -259,12 +259,17 @@ void watch_start(void)
                 row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<"费用:"<<row[5]<<" 车次:"<<row[6]<<endl;
             count++;
         }
+        if(count < 2)
+            cout <<"\n\t\t没有相关路线!"<<endl;
+
         cout <<"\t\t是否返回（yes/no)：";
         string choice;
         cout <<"\n\t\t\t";
         cin >> choice;
         if(choice == "yes")
             break;
+        else 
+            cout_err("输入错误!");
     }
 }
 void watch_end(void)
@@ -289,6 +294,8 @@ void watch_end(void)
                 row[2]<<" 起始时间："<<row[3]<<" 终止时间："<<row[4]<<"费用:"<<row[5]<<" 车次:"<<row[6]<<endl;
             count++;
         }
+        if(count < 2)
+            cout <<"\n\t\t没有相关路线!"<<endl;
         cout <<"\t\t是否返回（yes/no)：";
         string choice;
         cout <<"\n\t\t\t";
@@ -373,11 +380,10 @@ void min_time(void)//最少时间num
     while(1)
     {
         system("clear");
-        cout << "\t\t\t请输入起点和终点"<<endl;
         string start;
         string end; 
-        cout <<"\n\t\t\t";
-        cin >> start>>end;
+        input_sth("请输入起点:",start);
+        input_sth("请输入终点:",end);
         Path result = dijkstra(start,end,1);
         if (result.power < 0)
         {
@@ -527,11 +533,10 @@ void min_cost(void)//最省钱
     while(1)
     {
         system("clear");
-        cout << "\t\t\t请输入起点和终点"<<endl;
         string start;
-        string end;
-        cout <<"\n\t\t\t";
-        cin >> start>>end;
+        string end; 
+        input_sth("请输入起点:",start);
+        input_sth("请输入终点:",end);
         Path result = dijkstra(start,end,2);
         if (result.power < 0)
         {
@@ -593,11 +598,10 @@ void min_times(void)//中转次数最少
      while(1)
      {
          system("clear");
-         cout << "\t\t\t请输入起点和终点"<<endl;
          string start;
-         string end;
-         cout <<"\n\t\t\t";
-         cin >> start>>end;
+         string end; 
+         input_sth("请输入起点:",start);
+         input_sth("请输入终点:",end);
          Path result = bfs(start,end);
          if (result.power < 0)
          {
@@ -692,7 +696,6 @@ void db_query_real(string data,int line)
     if(mysql_real_query(mysql,data.c_str(),data.size())!=0)
     {
         my_err("query error",line);
-       // printf("\033[32m%s\033[0m\n", mysql_error(mysql));
+       printf("\033[32m%s\033[0m\n", mysql_error(mysql));
     }
 }
-
